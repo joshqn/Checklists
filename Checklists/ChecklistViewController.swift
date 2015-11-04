@@ -8,48 +8,20 @@
 
 import UIKit
 
+let kChecklistItemsKey = "ChecklistItems"
+
 class ChecklistViewController: UITableViewController, AddItemViewControllerDelegate {
     var items:[ChecklistItem]
+    var checklist: Checklist!
     
     required init?(coder aDecoder: NSCoder) {
         items = [ChecklistItem]()
-        
-        let row0Item = ChecklistItem()
-        row0Item.text = "Walk the Dog"
-        row0Item.checked = false
-        items.append(row0Item)
-        
-        let row1Item = ChecklistItem()
-        row1Item.text = "Brush My Teeth"
-        row1Item.checked = true
-        items.append(row1Item)
-
-        
-        let row2Item = ChecklistItem()
-        row2Item.text = "Learn iOS Programming"
-        row2Item.checked = false
-        items.append(row2Item)
-
-        
-        let row3Item = ChecklistItem()
-        row3Item.text = "Soccer Practice"
-        row3Item.checked = false
-        items.append(row3Item)
-
-        
-        let row4Item = ChecklistItem()
-        row4Item.text = "Eat Ice cream"
-        row4Item.checked = true
-        items.append(row4Item)
-
         super.init(coder: aDecoder)
-        
-        print("Documents folder is \(documentsDirectory())")
-        print("Data file path is \(dataFilePath())")
-        
+        loadChecklistItems()
     }
     
     override func viewDidLoad() {
+        title = checklist.name
         super.viewDidLoad()
 
     }
@@ -75,6 +47,8 @@ class ChecklistViewController: UITableViewController, AddItemViewControllerDeleg
         }
     }
     
+    //MARK: UITableViewDataSource
+    
     override func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return items.count
     }
@@ -85,10 +59,12 @@ class ChecklistViewController: UITableViewController, AddItemViewControllerDeleg
         let item = items[indexPath.row]
         
         configureTextForCell(cell, withChecklistItem: item)
-        configureCheckmarkForCell(cell, withChecklistItem: item)
+        configureCheckmarkForCellAtStartup(cell, withChecklistItem: item)
         
         return cell
     }
+    
+    //MARK: UITableViewDelegate
     
     override func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
         if let cell = tableView.cellForRowAtIndexPath(indexPath) {
@@ -110,15 +86,40 @@ class ChecklistViewController: UITableViewController, AddItemViewControllerDeleg
         saveChecklistItems()
     }
     
+    //MARK: Helper Functions
+    
+    func loadChecklistItems() {
+        let path = dataFilePath()
+        if NSFileManager.defaultManager().fileExistsAtPath(path) {
+            if let data = NSData(contentsOfFile: path) {
+                let unarchiver = NSKeyedUnarchiver(forReadingWithData: data)
+                items = unarchiver.decodeObjectForKey(kChecklistItemsKey) as! [ChecklistItem]
+                unarchiver.finishDecoding()
+            }
+        }
+    }
+    
     func configureCheckmarkForCell(cell:UITableViewCell,withChecklistItem item: ChecklistItem) {
-        let label = cell.viewWithTag(1001) as! UILabel
+        let checkMark = cell.viewWithTag(1001) as! CheckMarkView
         
         if item.checked {
-            label.text = "√"
+            checkMark.hidden = false
+            checkMark.addCompleteAnimation()
         } else {
-            label.text = ""
+            checkMark.addUncompleteAnimation()
         }
 
+    }
+    
+    func configureCheckmarkForCellAtStartup(cell:UITableViewCell,withChecklistItem item: ChecklistItem) {
+        let checkMark = cell.viewWithTag(1001) as! CheckMarkView
+        
+        if item.checked {
+            checkMark.addCompleteAnimation()
+        } else {
+            checkMark.hidden = true
+        }
+        
     }
     
     func configureTextForCell(cell:UITableViewCell, withChecklistItem item: ChecklistItem) {
@@ -126,7 +127,7 @@ class ChecklistViewController: UITableViewController, AddItemViewControllerDeleg
         label.text = item.text
     }
     
-    //MARK: Documents
+    //MARK: Access Documents
     
     func documentsDirectory() -> String {
         let paths = NSSearchPathForDirectoriesInDomains(.DocumentDirectory, .UserDomainMask, true)
@@ -140,7 +141,7 @@ class ChecklistViewController: UITableViewController, AddItemViewControllerDeleg
     func saveChecklistItems() {
         let data = NSMutableData()
         let archiver = NSKeyedArchiver(forWritingWithMutableData: data)
-        archiver.encodeObject(items, forKey: "ChecklistItems")
+        archiver.encodeObject(items, forKey: kChecklistItemsKey)
         archiver.finishEncoding()
         data.writeToFile(dataFilePath(), atomically: true)
     }
